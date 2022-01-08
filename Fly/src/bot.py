@@ -1,3 +1,5 @@
+import math
+
 from rlbot.agents.base_agent import BaseAgent, SimpleControllerState
 from rlbot.messages.flat.QuickChatSelection import QuickChatSelection
 from rlbot.utils.structures.game_data_struct import GameTickPacket
@@ -8,6 +10,8 @@ from util.drive import steer_toward_target
 from util.sequence import Sequence, ControlStep
 from util.vec import Vec3
 from rlbot.messages.flat.BoostOption import BoostOption
+
+import random
 
 
 class MyBot(BaseAgent):
@@ -45,41 +49,41 @@ class MyBot(BaseAgent):
         ball_location = Vec3(packet.game_ball.physics.location)
 
         # By default we will chase the ball, but target_location can be changed later
-        target_location = ball_location
+        # target_location = ball_location
 
-        if car_location.dist(ball_location) > 1500:
-            # We're far away from the ball, let's try to lead it a little bit
-            ball_prediction = self.get_ball_prediction_struct()  # This can predict bounces, etc
-            ball_in_future = find_slice_at_time(ball_prediction, packet.game_info.seconds_elapsed + 2)
-
-            # ball_in_future might be None if we don't have an adequate ball prediction right now, like during
-            # replays, so check it to avoid errors.
-            if ball_in_future is not None:
-                target_location = Vec3(ball_in_future.physics.location)
-                self.renderer.draw_line_3d(ball_location, target_location, self.renderer.cyan())
+        # Draw a circle of locations
+        target_points = []
+        r = 100.0
+        self.renderer.begin_rendering()
+        #  for i in range(0, 2 * math.pi, 0.1):
+            # self.renderer.draw_line_3d(car_location, Vec3(r * math.cos(i), 200, r * math.sin(i)), self.renderer.white())
+        self.draw_points_to_fly(car_location)
+        self.renderer.end_rendering()
 
         # Draw some things to help understand what the bot is thinking
-        self.renderer.draw_line_3d(car_location, target_location, self.renderer.white())
-        self.renderer.draw_string_3d(car_location, 1, 1, f'Speed: {car_velocity.length():.1f}', self.renderer.white())
-        self.renderer.draw_rect_3d(target_location, 8, 8, True, self.renderer.cyan(), centered=True)
+        # self.renderer.draw_line_3d(car_location, target_location, self.renderer.white())
+        # self.renderer.draw_string_3d(car_location, 1, 1, f'Speed: {car_velocity.length():.1f}', self.renderer.white())
+        # self.renderer.draw_rect_3d(target_location, 8, 8, True, self.renderer.cyan(), centered=True)
 
-        if 750 < car_velocity.length() < 800:
-            # We'll do a front flip if the car is moving at a certain speed.
-            return self.begin_front_flip(packet)
-        if self.start == 0:
-            self.start_flying(packet)
-            self.start = 1
-        else:
-            self.fly(packet)
-            packet.game_cars[0].boost=100
+        # if self.start == 0:
+        #     self.start_flying(packet)
+        #     self.start = 1
+        # else:
+        #     self.fly(packet)
+        #     packet.game_cars[0].boost=100
         controls = SimpleControllerState()
+
         # controls.steer = steer_toward_target(my_car, target_location)
-        # controls.throttle = 1.0
-        # You can set more controls if you want, like controls.boost.
+        controls.throttle = 1.0
 
         return controls
 
     def fly(self, packet):
+        """
+        Function for hardcoded flying.
+
+        :author: Hutu Alexandru
+        """
         self.active_sequence = Sequence([])
         if self.start == 1: 
             self.active_sequence = Sequence([
@@ -102,6 +106,12 @@ class MyBot(BaseAgent):
         return self.active_sequence.tick(packet)
 
     def start_flying(self, packet):
+        """
+        Function for initiating the jump motion.
+
+        :return: ??
+        :author: Hutu Alexandru
+        """
         self.active_sequence = Sequence([
             ControlStep(duration=5, controls=SimpleControllerState()),
             ControlStep(duration=0.5, controls=SimpleControllerState(jump=True)),
@@ -109,6 +119,7 @@ class MyBot(BaseAgent):
             ControlStep(duration=0.5, controls=SimpleControllerState(jump=True)),
         ])
         return self.active_sequence.tick(packet)
+    
     def begin_front_flip(self, packet):
         # Send some quickchat just for fun
         self.send_quick_chat(team_only=False, quick_chat=QuickChatSelection.Information_IGotIt)
@@ -124,3 +135,33 @@ class MyBot(BaseAgent):
 
         # Return the controls associated with the beginning of the sequence so we can start right away.
         return self.active_sequence.tick(packet)
+
+    def draw_points_to_fly(self, car_location):
+        """
+        Function for displaying a circle of points on a fixed height and lines that connect the PLAYER to each one of them.
+        Does not call begin_renderer() or end_renderer().
+
+        :param car_location: the location of the car
+        :author: Adi
+        :mention: In progress!
+        """
+        # Default unit of measurement (about a car's length)
+        unit = 500
+
+        # The center of the circle
+        circle_center = Vec3(0, 0, 3 * unit)
+
+        # Draw some points that should be around the circle center
+
+        self.renderer.draw_line_3d(car_location, circle_center + Vec3(unit, 0, 0), self.renderer.white())
+        self.renderer.draw_line_3d(car_location, circle_center + Vec3(-unit, 0, 0), self.renderer.white())
+        self.renderer.draw_line_3d(car_location, circle_center + Vec3(0, unit, 0), self.renderer.white())
+        self.renderer.draw_line_3d(car_location, circle_center + Vec3(0, -unit, 0), self.renderer.white())
+
+
+def draw_debug(renderer, car, target):
+    renderer.begin_rendering()
+    # draw a line from the car to the target
+    renderer.draw_line_3d(car.physics.location, target, renderer.white())
+
+    renderer.end_rendering()
