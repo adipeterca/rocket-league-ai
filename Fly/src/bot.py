@@ -46,7 +46,6 @@ class MyBot(BaseAgent):
         my_car = packet.game_cars[self.index]
         car_location = Vec3(my_car.physics.location)
         car_velocity = Vec3(my_car.physics.velocity)
-        ball_location = Vec3(packet.game_ball.physics.location)
 
         # Draw a circle of rectangles
         self.renderer.begin_rendering()
@@ -103,22 +102,6 @@ class MyBot(BaseAgent):
             ControlStep(duration=0.5, controls=SimpleControllerState(jump=False, pitch=0.50)),
             ControlStep(duration=0.5, controls=SimpleControllerState(jump=True)),
         ])
-        return self.active_sequence.tick(packet)
-    
-    def begin_front_flip(self, packet):
-        # Send some quickchat just for fun
-        self.send_quick_chat(team_only=False, quick_chat=QuickChatSelection.Information_IGotIt)
-
-        # Do a front flip. We will be committed to this for a few seconds and the bot will ignore other
-        # logic during that time because we are setting the active_sequence.
-        self.active_sequence = Sequence([
-            ControlStep(duration=0.05, controls=SimpleControllerState(jump=True)),
-            ControlStep(duration=0.05, controls=SimpleControllerState(jump=False)),
-            ControlStep(duration=0.2, controls=SimpleControllerState(jump=True, pitch=-1)),
-            ControlStep(duration=0.8, controls=SimpleControllerState()),
-        ])
-
-        # Return the controls associated with the beginning of the sequence so we can start right away.
         return self.active_sequence.tick(packet)
 
     def draw_points_to_fly(self, car_location):
