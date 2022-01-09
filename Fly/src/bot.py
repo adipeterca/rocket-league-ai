@@ -1,5 +1,3 @@
-import math
-
 from rlbot.agents.base_agent import BaseAgent, SimpleControllerState
 from rlbot.messages.flat.QuickChatSelection import QuickChatSelection
 from rlbot.utils.structures.game_data_struct import GameTickPacket
@@ -11,16 +9,117 @@ from util.sequence import Sequence, ControlStep
 from util.vec import Vec3
 from rlbot.messages.flat.BoostOption import BoostOption
 
-import random
+import math
+import numpy as np
+import tensorflow
+from tensorflow import keras
+from keras.models import Sequential
+from keras.layers import Dense, Activation
+from keras import activations
 
+def build_model_boost():
+    """
+    Build a predefined model of a Neural Network (12, 50, 1).
+
+    Important observation: the decision of whether or not to apply boost in a given state could also be implemented
+    as a perceptron, as it is a liniar separable problem.
+
+    As input, it takes 4 Vec3 parameters:
+    - location
+    - rotation
+    - velocity
+    - angular velocity
+    As output, it gives 1 integer parameter:
+    - boost (between 0 and 1)
+    """
+    model = Sequential()
+    model.add(Dense(100, input_shape=(12,), activation='relu'))
+    model.add(Dense(1, activation='linear'))
+
+    model.compile(loss="mean_squared_error", optimizer='adam')
+    return model
+
+def build_model_direction():
+    """
+    Build a predefined model of a Neural Network (12, 100, 4).
+
+    As input, it takes 4 Vec3 parameters:
+    - location
+    - rotation
+    - velocity
+    - angular velocity
+    As output, it gives 4 integer parameters:
+    - pitch up (between 0 and 1)
+    - pitch down (between 0 and 1)
+    - yaw left (between 0 and 1)
+    - yaw right (between 0 and 1)
+
+    :return: the neural network model
+    """
+    model = Sequential()
+    model.add(Dense(100, input_shape=(12,), activation='relu'))
+    model.add(Dense(4, activation='linear'))
+
+    model.compile(loss="mean_squared_error", optimizer='adam')
+    return model
+
+def output_to_controls(nn_output_direction, nn_output_boost) -> SimpleControllerState:
+    """
+    Function for converting the given Neural Network outputs into a SimpleControllerState.
+
+    :param nn_output_direction: output from the directional NN
+    :param nn_output_boost: whether or not to apply the boost
+    :return: a controller state
+    """
+
+def build_inputs(game_tick_packet: GameTickPacket, car_index):
+    """
+    Function for converting the given Game Tick packet into viable Neural Network inputs.
+
+    :param game_tick_packet: the given game tick packet
+    :param car_index: index of the current car
+    :return: NN inputs 
+    """
+    inputs = []
+    location = game_tick_packet['game_cars'][car_index]['physics']['location']
+    rotation = game_tick_packet['game_cars'][car_index]['physics']['rotation']
+    velocity = game_tick_packet['game_cars'][car_index]['physics']['velocity']
+    angular_velocity = game_tick_packet['game_cars'][car_index]['physics']['angular_velocity']
+    
+    # Append the location values
+    inputs.append(location['x'])
+    inputs.append(location['y'])
+    inputs.append(location['z'])
+
+    # Append the rotation values
+    inputs.append(rotation['pitch'])
+    inputs.append(rotation['yaw'])
+    inputs.append(rotation['roll'])
+
+    # Append the velocity values
+    inputs.append(velocity['x'])
+    inputs.append(velocity['y'])
+    inputs.append(velocity['z'])
+
+    # Append the angular_velocity
+    inputs.append(angular_velocity['x'])
+    inputs.append(angular_velocity['y'])
+    inputs.append(angular_velocity['z'])
+
+    return np.array(inputs).reshape(12, 1).T
 
 class MyBot(BaseAgent):
 
     def __init__(self, name, team, index):
         super().__init__(name, team, index)
         self.active_sequence: Sequence = None
-        self.boost_pad_tracker = BoostPadTracker()
+
+        # Variabile used to determine in which state the car is
         self.start = 0
+
+        # Neural network models
+        self.nn_direction = build_model_direction()
+        self.nn_boost = build_model_boost()
 
     def initialize_agent(self):
         # Set up information about the boost pads now that the game is active and the info is available
@@ -49,13 +148,22 @@ class MyBot(BaseAgent):
             if controls is not None:
                 return controls
 
+        # # # This is where the neural network decision should go
+        inputs = build_inputs(packet, self.index)
+
+        output_direction = self.nn_direction(inputs)
+        output_boost = self.nn_boost(inputs)
+
+        controlss = output_to_controls(output_direction, output_boost)
+
         # Initial fly
         if self.start == 0:
             self.start_flying(packet)
             self.start = 1
         else:
             self.fly(packet)
-            packet.game_cars[0].boost=100
+            packet.game_cars[0].boost = 100
+        
         controls = SimpleControllerState()
 
         return controls
