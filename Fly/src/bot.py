@@ -32,8 +32,15 @@ class MyBot(BaseAgent):
         see the motion of the ball, etc. and return controls to drive your car.
         """
 
-        # Keep our boost pad info updated with which pads are currently active
-        self.boost_pad_tracker.update_boost_status(packet)
+        # Gather some information about our car and the ball
+        my_car = packet.game_cars[self.index]
+        car_location = Vec3(my_car.physics.location)
+        car_velocity = Vec3(my_car.physics.velocity)
+
+        # Debug rendering
+        self.renderer.begin_rendering()
+        self.draw_points_to_fly(car_location)
+        self.renderer.end_rendering()
 
         # This is good to keep at the beginning of get_output. It will allow you to continue
         # any sequences that you may have started during a previous call to get_output.
@@ -42,22 +49,13 @@ class MyBot(BaseAgent):
             if controls is not None:
                 return controls
 
-        # Gather some information about our car and the ball
-        my_car = packet.game_cars[self.index]
-        car_location = Vec3(my_car.physics.location)
-        car_velocity = Vec3(my_car.physics.velocity)
-
-        # Draw a circle of rectangles
-        self.renderer.begin_rendering()
-        self.draw_points_to_fly(car_location)
-        self.renderer.end_rendering()
-
-        # if self.start == 0:
-        #     self.start_flying(packet)
-        #     self.start = 1
-        # else:
-        #     self.fly(packet)
-        #     packet.game_cars[0].boost=100
+        # Initial fly
+        if self.start == 0:
+            self.start_flying(packet)
+            self.start = 1
+        else:
+            self.fly(packet)
+            packet.game_cars[0].boost=100
         controls = SimpleControllerState()
 
         return controls
