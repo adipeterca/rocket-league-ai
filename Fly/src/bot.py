@@ -48,22 +48,10 @@ class MyBot(BaseAgent):
         car_velocity = Vec3(my_car.physics.velocity)
         ball_location = Vec3(packet.game_ball.physics.location)
 
-        # By default we will chase the ball, but target_location can be changed later
-        # target_location = ball_location
-
-        # Draw a circle of locations
-        target_points = []
-        r = 100.0
+        # Draw a circle of rectangles
         self.renderer.begin_rendering()
-        #  for i in range(0, 2 * math.pi, 0.1):
-            # self.renderer.draw_line_3d(car_location, Vec3(r * math.cos(i), 200, r * math.sin(i)), self.renderer.white())
         self.draw_points_to_fly(car_location)
         self.renderer.end_rendering()
-
-        # Draw some things to help understand what the bot is thinking
-        # self.renderer.draw_line_3d(car_location, target_location, self.renderer.white())
-        # self.renderer.draw_string_3d(car_location, 1, 1, f'Speed: {car_velocity.length():.1f}', self.renderer.white())
-        # self.renderer.draw_rect_3d(target_location, 8, 8, True, self.renderer.cyan(), centered=True)
 
         # if self.start == 0:
         #     self.start_flying(packet)
@@ -72,9 +60,6 @@ class MyBot(BaseAgent):
         #     self.fly(packet)
         #     packet.game_cars[0].boost=100
         controls = SimpleControllerState()
-
-        # controls.steer = steer_toward_target(my_car, target_location)
-        controls.throttle = 1.0
 
         return controls
 
@@ -142,26 +127,17 @@ class MyBot(BaseAgent):
         Does not call begin_renderer() or end_renderer().
 
         :param car_location: the location of the car
-        :author: Adi
-        :mention: In progress!
+        :author: Adi & Theo
         """
         # Default unit of measurement (about a car's length)
         unit = 500
 
-        # The center of the circle
-        circle_center = Vec3(0, 0, 3 * unit)
-
-        # Draw some points that should be around the circle center
-
-        self.renderer.draw_line_3d(car_location, circle_center + Vec3(unit, 0, 0), self.renderer.white())
-        self.renderer.draw_line_3d(car_location, circle_center + Vec3(-unit, 0, 0), self.renderer.white())
-        self.renderer.draw_line_3d(car_location, circle_center + Vec3(0, unit, 0), self.renderer.white())
-        self.renderer.draw_line_3d(car_location, circle_center + Vec3(0, -unit, 0), self.renderer.white())
-
-
-def draw_debug(renderer, car, target):
-    renderer.begin_rendering()
-    # draw a line from the car to the target
-    renderer.draw_line_3d(car.physics.location, target, renderer.white())
-
-    renderer.end_rendering()
+        # Draw rectangles in a circular pattern using an angle that goes about the center of a circle
+        # x position = unit * cos(angle)
+        # y position = unit * sin(angle)
+        # z position = unit (how high from the base of the field the rectangle should be)
+        # angle is updated each iteration such that only 20 points are drawn
+        angle = 0.0
+        while angle < 2 * math.pi:
+            self.renderer.draw_rect_3d(Vec3(unit * math.cos(angle), unit * math.sin(angle), 3 * unit), 20, 20, 0, self.renderer.green())
+            angle += 0.314
