@@ -11,7 +11,7 @@ from rlbot.messages.flat.BoostOption import BoostOption
 
 import math
 import numpy as np
-import tensorflow
+import random
 from tensorflow import keras
 from keras.models import Sequential
 from keras.layers import Dense, Activation
@@ -34,7 +34,7 @@ def build_model_boost():
     """
     model = Sequential()
     model.add(Dense(100, input_shape=(12,), activation='relu'))
-    model.add(Dense(1, activation='linear'))
+    model.add(Dense(1, activation='sigmoid'))
 
     model.compile(loss="mean_squared_error", optimizer='adam')
     return model
@@ -58,7 +58,7 @@ def build_model_direction():
     """
     model = Sequential()
     model.add(Dense(100, input_shape=(12,), activation='relu'))
-    model.add(Dense(4, activation='linear'))
+    model.add(Dense(4, activation='softmax'))
 
     model.compile(loss="mean_squared_error", optimizer='adam')
     return model
@@ -121,6 +121,8 @@ class MyBot(BaseAgent):
         self.nn_direction = build_model_direction()
         self.nn_boost = build_model_boost()
 
+        self.initial_car_location = None
+
     def initialize_agent(self):
         # Set up information about the boost pads now that the game is active and the info is available
         # self.boost_pad_tracker.initialize_boosts(self.get_field_info())
@@ -142,6 +144,8 @@ class MyBot(BaseAgent):
         self.draw_points_to_fly(car_location)
         self.renderer.end_rendering()
 
+        # print(car_location)
+
         # This is good to keep at the beginning of get_output. It will allow you to continue
         # any sequences that you may have started during a previous call to get_output.
         if self.active_sequence is not None and not self.active_sequence.done:
@@ -150,21 +154,54 @@ class MyBot(BaseAgent):
                 return controls
 
         # # # This is where the neural network decision should go
-        inputs = build_inputs(packet, self.index)
+        # inputs = build_inputs(packet, self.index)
 
-        output_direction = self.nn_direction(inputs)
-        output_boost = self.nn_boost(inputs)
+        # output_direction = self.nn_direction(inputs)
+        # output_boost = self.nn_boost(inputs)
 
-        controlss = output_to_controls(output_direction, output_boost)
+        # controls = output_to_controls(output_direction, output_boost)
 
-        # Initial fly
-        if self.start == 0:
+        if self.initial_car_location == None:
+            self.initial_car_location = car_location
+
             self.start_flying(packet)
             self.start = 1
         else:
-            self.fly(packet)
-            packet.game_cars[0].boost = 100
+            if car_location.y > self.initial_car_location.y:
+                print("going forward")
+                self.active_sequence = Sequence([
+                ControlStep(duration=0.3, controls=SimpleControllerState(boost=True, roll=1.0)),
+                ControlStep(duration=0.26, controls=SimpleControllerState(boost=False, roll=1.0)),
+                ControlStep(duration=0.15, controls=SimpleControllerState(boost=True, roll=1.0)),
+                ControlStep(duration=0.05, controls=SimpleControllerState(boost=False, pitch=-0.01, roll=1.0))
+            ])
+            else:
+                print("going backwards")
+                self.active_sequence = Sequence([
+                ControlStep(duration=0.3, controls=SimpleControllerState(boost=True, roll=1.0)),
+                ControlStep(duration=0.2, controls=SimpleControllerState(boost=False, roll=1.0)),
+                ControlStep(duration=0.15, controls=SimpleControllerState(boost=True, roll=1.0)),
+                ControlStep(duration=0.05, controls=SimpleControllerState(boost=False, pitch=0.01, roll=1.0))
+            ])
+
+        # Initial fly
+        # if self.start == 0:
+        #     self.start_flying(packet)
+        #     self.start = 1
+        # elif car_location.y > -1000.00: # Does not collide with the wall
+        #     self.fly(packet)
+        #     # packet.game_cars[0].boost = 100
+        # else: 
+        #     self.active_sequence = Sequence([
+        #         ControlStep(duration=0.3, controls=SimpleControllerState(boost=True)),
+        #         ControlStep(duration=0.16, controls=SimpleControllerState(boost=False)),
+        #         ControlStep(duration=0.15, controls=SimpleControllerState(boost=True)),
+        #         ControlStep(duration=0.1, controls=SimpleControllerState(boost=False, pitch=0.3))
+        #     ])
         
+        # Debug values
+        # -3000 - aproape a mers 60 de secunde
+
         controls = SimpleControllerState()
 
         return controls
@@ -179,21 +216,19 @@ class MyBot(BaseAgent):
         if self.start == 1: 
             self.active_sequence = Sequence([
                 ControlStep(duration=1.5, controls=SimpleControllerState(boost=True)),
-                ControlStep(duration=0.5, controls=SimpleControllerState(boost=False)),
+                ControlStep(duration=0.1, controls=SimpleControllerState(boost=False)),
             ])
             self.start = 2
         else:
-            pitch_rotation = 1.5 - packet.game_cars[0].physics.rotation.pitch  
-            print(packet.game_cars[0].physics.rotation.pitch )
-            print("======================================================")
-            print(packet.game_cars[0].physics.location.x,packet.game_cars[0].physics.location.y,packet.game_cars[0].physics.location.z )
-            print("======================================================")
+            pitch_rotation = 1.5 - packet.game_cars[0].physics.rotation.pitch
+            # print(pitch_rotation)
+            # pitch_rotation = random.choice([1, -1])
             self.active_sequence = Sequence([
-                ControlStep(duration=0.54, controls=SimpleControllerState(boost=True, roll=1.0)),
-                ControlStep(duration=0.5, controls=SimpleControllerState(boost=False,roll=1.0)),
-                ControlStep(duration=0.3, controls=SimpleControllerState(boost=True, pitch=pitch_rotation,roll=1.0))
+                ControlStep(duration=0.3, controls=SimpleControllerState(boost=True)),
+                ControlStep(duration=0.26, controls=SimpleControllerState(boost=False)),
+                ControlStep(duration=0.15, controls=SimpleControllerState(boost=True, pitch=pitch_rotation))
             ])
-                
+        # 0.54, 0.5, 0.3  
         return self.active_sequence.tick(packet)
 
     def start_flying(self, packet):
@@ -206,8 +241,10 @@ class MyBot(BaseAgent):
         self.active_sequence = Sequence([
             ControlStep(duration=5, controls=SimpleControllerState()),
             ControlStep(duration=0.5, controls=SimpleControllerState(jump=True)),
-            ControlStep(duration=0.5, controls=SimpleControllerState(jump=False, pitch=0.50)),
+            ControlStep(duration=0.5, controls=SimpleControllerState(jump=False, pitch=0.51)),
             ControlStep(duration=0.5, controls=SimpleControllerState(jump=True)),
+            ControlStep(duration=1.5, controls=SimpleControllerState(boost=True)),
+            ControlStep(duration=0.1, controls=SimpleControllerState(boost=False))
         ])
         return self.active_sequence.tick(packet)
 
