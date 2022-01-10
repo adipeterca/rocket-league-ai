@@ -72,39 +72,39 @@ def output_to_controls(nn_output_direction, nn_output_boost) -> SimpleController
     :return: a controller state
     """
 
-def build_inputs(game_tick_packet: GameTickPacket, car_index):
+def build_inputs(packet: GameTickPacket, car_index):
     """
     Function for converting the given Game Tick packet into viable Neural Network inputs.
 
-    :param game_tick_packet: the given game tick packet
+    :param packet: the given game tick packet
     :param car_index: index of the current car
     :return: NN inputs 
     """
     inputs = []
-    location = game_tick_packet['game_cars'][car_index]['physics']['location']
-    rotation = game_tick_packet['game_cars'][car_index]['physics']['rotation']
-    velocity = game_tick_packet['game_cars'][car_index]['physics']['velocity']
-    angular_velocity = game_tick_packet['game_cars'][car_index]['physics']['angular_velocity']
+    location = packet.game_cars[car_index].physics.location
+    rotation = packet.game_cars[car_index].physics.rotation
+    velocity = packet.game_cars[car_index].physics.velocity
+    angular_velocity = packet.game_cars[car_index].physics.angular_velocity
     
     # Append the location values
-    inputs.append(location['x'])
-    inputs.append(location['y'])
-    inputs.append(location['z'])
+    inputs.append(location.x)
+    inputs.append(location.y)
+    inputs.append(location.z)
 
     # Append the rotation values
-    inputs.append(rotation['pitch'])
-    inputs.append(rotation['yaw'])
-    inputs.append(rotation['roll'])
+    inputs.append(rotation.pitch)
+    inputs.append(rotation.yaw)
+    inputs.append(rotation.roll)
 
     # Append the velocity values
-    inputs.append(velocity['x'])
-    inputs.append(velocity['y'])
-    inputs.append(velocity['z'])
+    inputs.append(velocity.x)
+    inputs.append(velocity.y)
+    inputs.append(velocity.z)
 
     # Append the angular_velocity
-    inputs.append(angular_velocity['x'])
-    inputs.append(angular_velocity['y'])
-    inputs.append(angular_velocity['z'])
+    inputs.append(angular_velocity.x)
+    inputs.append(angular_velocity.y)
+    inputs.append(angular_velocity.z)
 
     return np.array(inputs).reshape(12, 1).T
 
@@ -123,7 +123,8 @@ class MyBot(BaseAgent):
 
     def initialize_agent(self):
         # Set up information about the boost pads now that the game is active and the info is available
-        self.boost_pad_tracker.initialize_boosts(self.get_field_info())
+        # self.boost_pad_tracker.initialize_boosts(self.get_field_info())
+        pass
 
     def get_output(self, packet: GameTickPacket) -> SimpleControllerState:
         """
@@ -188,9 +189,9 @@ class MyBot(BaseAgent):
             print(packet.game_cars[0].physics.location.x,packet.game_cars[0].physics.location.y,packet.game_cars[0].physics.location.z )
             print("======================================================")
             self.active_sequence = Sequence([
-                ControlStep(duration=0.54, controls=SimpleControllerState(boost=True, roll=0.5)),
-                ControlStep(duration=0.5, controls=SimpleControllerState(boost=False,roll=0.5)),
-                ControlStep(duration=0.3, controls=SimpleControllerState(boost=True, pitch=pitch_rotation,roll=0.5))
+                ControlStep(duration=0.54, controls=SimpleControllerState(boost=True, roll=1.0)),
+                ControlStep(duration=0.5, controls=SimpleControllerState(boost=False,roll=1.0)),
+                ControlStep(duration=0.3, controls=SimpleControllerState(boost=True, pitch=pitch_rotation,roll=1.0))
             ])
                 
         return self.active_sequence.tick(packet)
