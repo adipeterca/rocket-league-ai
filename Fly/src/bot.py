@@ -144,8 +144,6 @@ class MyBot(BaseAgent):
         self.draw_points_to_fly(car_location)
         self.renderer.end_rendering()
 
-        # print(car_location)
-
         # This is good to keep at the beginning of get_output. It will allow you to continue
         # any sequences that you may have started during a previous call to get_output.
         if self.active_sequence is not None and not self.active_sequence.done:
@@ -161,13 +159,17 @@ class MyBot(BaseAgent):
 
         # controls = output_to_controls(output_direction, output_boost)
 
+        # Initial takeoff
         if self.initial_car_location == None:
+            # Get the original car location
             self.initial_car_location = car_location
 
+            # Take off
             self.start_flying(packet)
             self.start = 1
         else:
             if car_location.y > self.initial_car_location.y:
+                # Balance the car as to go forward
                 print("going forward")
                 self.active_sequence = Sequence([
                 ControlStep(duration=0.3, controls=SimpleControllerState(boost=True, roll=1.0)),
@@ -176,6 +178,7 @@ class MyBot(BaseAgent):
                 ControlStep(duration=0.05, controls=SimpleControllerState(boost=False, pitch=-0.01, roll=1.0))
             ])
             else:
+                # Balance the car as to go backwards
                 print("going backwards")
                 self.active_sequence = Sequence([
                 ControlStep(duration=0.3, controls=SimpleControllerState(boost=True, roll=1.0)),
@@ -198,9 +201,6 @@ class MyBot(BaseAgent):
         #         ControlStep(duration=0.15, controls=SimpleControllerState(boost=True)),
         #         ControlStep(duration=0.1, controls=SimpleControllerState(boost=False, pitch=0.3))
         #     ])
-        
-        # Debug values
-        # -3000 - aproape a mers 60 de secunde
 
         controls = SimpleControllerState()
 
@@ -210,24 +210,23 @@ class MyBot(BaseAgent):
         """
         Function for hardcoded flying.
 
-        :author: Hutu Alexandru
+        :param packet: the game tick packet for the current frame
+        :return: an active sequence of actions
         """
-        self.active_sequence = Sequence([])
-        if self.start == 1: 
-            self.active_sequence = Sequence([
-                ControlStep(duration=1.5, controls=SimpleControllerState(boost=True)),
-                ControlStep(duration=0.1, controls=SimpleControllerState(boost=False)),
-            ])
-            self.start = 2
-        else:
-            pitch_rotation = 1.5 - packet.game_cars[0].physics.rotation.pitch
-            # print(pitch_rotation)
-            # pitch_rotation = random.choice([1, -1])
-            self.active_sequence = Sequence([
-                ControlStep(duration=0.3, controls=SimpleControllerState(boost=True)),
-                ControlStep(duration=0.26, controls=SimpleControllerState(boost=False)),
-                ControlStep(duration=0.15, controls=SimpleControllerState(boost=True, pitch=pitch_rotation))
-            ])
+        # self.active_sequence = Sequence([])
+        # if self.start == 1: 
+        #     self.active_sequence = Sequence([
+        #         ControlStep(duration=1.5, controls=SimpleControllerState(boost=True)),
+        #         ControlStep(duration=0.1, controls=SimpleControllerState(boost=False)),
+        #     ])
+        #     self.start = 2
+        # else:
+        pitch_rotation = 1.5 - packet.game_cars[0].physics.rotation.pitch
+        self.active_sequence = Sequence([
+            ControlStep(duration=0.3, controls=SimpleControllerState(boost=True)),
+            ControlStep(duration=0.26, controls=SimpleControllerState(boost=False)),
+            ControlStep(duration=0.15, controls=SimpleControllerState(boost=True, pitch=pitch_rotation))
+        ])
         # 0.54, 0.5, 0.3  
         return self.active_sequence.tick(packet)
 
@@ -235,8 +234,8 @@ class MyBot(BaseAgent):
         """
         Function for initiating the jump motion.
 
-        :return: ??
-        :author: Hutu Alexandru
+        :param packet: the game tick packet for the current frame
+        :return: an active sequence of actions
         """
         self.active_sequence = Sequence([
             ControlStep(duration=5, controls=SimpleControllerState()),
@@ -254,7 +253,6 @@ class MyBot(BaseAgent):
         Does not call begin_renderer() or end_renderer().
 
         :param car_location: the location of the car
-        :author: Adi & Theo
         """
         # Default unit of measurement (about a car's length)
         unit = 500
