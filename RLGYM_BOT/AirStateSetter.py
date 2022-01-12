@@ -8,9 +8,11 @@ class InitialStateSetter(StateSetter):
     
         # Set up our desired spawn location and orientation.
         desired_car_pos = [0,0,500] #x, y, z
+        angular_vel = [0, -10, 0]
         
         # Loop over every car in the game.
         for car in state_wrapper.cars:
             pos = desired_car_pos
             car.set_pos(*pos)
+            car.set_ang_vel(*angular_vel)
             car.boost = 1.0
